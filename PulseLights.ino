@@ -20,6 +20,9 @@
 #define PULSE_PIN 0                 // Pulse Sensor purple wire connected to analog pin 0
 #define BLINK_PIN 13                // pin to blink led at each beat
 int fadeRate = 0;                   // used to fade LED brightness after beat
+long waitPeriod = 0;
+long lastMove = 0;
+long timeSinceMove = 0;
 
 
 // Volatile Variables, used in the interrupt service routine!
@@ -82,6 +85,9 @@ void loop() {
     // Quantified Self "QS" true when arduino finds a heartbeat
     digitalWrite(BLINK_PIN, HIGH);    // Blink LED, we got a beat.
     fadeRate = 255;         // Makes the LED Fade Effect Happen
+    waitPeriod = 0;
+    timeSinceMove = 0;
+    lastMove = millis();
     // Set 'fadeRate' Variable to 255 to fade LED with pulse
     serialOutputWhenBeatHappens();   // A Beat Happened, Output that to serial.
     QS = false;                      // reset the Quantified Self flag for next time
@@ -92,27 +98,32 @@ void loop() {
   // turn on lights for pulses
 
   ledFadeToBeat();                      // Makes the LED Fade Effect Happen
-  delay(20);                             //  take a break
 }
 
 
 
 
-
 void ledFadeToBeat() {
-  fadeRate -= 25;                         //  set LED fade value
-  fadeRate = constrain(fadeRate, 0, 255); //  keep LED fade value from going into negative numbers!
-
-  for (int i = NUMPIXELS - 1  ;  i >= 1  ;  i--) {
-    colors[i] = colors[i-1];
+  timeSinceMove = millis() - lastMove;
+  if (timeSinceMove >= waitPeriod) {
+    Serial.println("WAIT " + waitPeriod);
+    waitPeriod = constrain (waitPeriod + 5, 0, 100);
+    lastMove = millis ();
+    timeSinceMove = 0;
+    fadeRate -= 15;                         //  set LED fade value
+    fadeRate = constrain(fadeRate, 0, 255); //  keep LED fade value from going into negative numbers!
+    
+    for (int i = NUMPIXELS - 1  ;  i >= 1  ;  i--) {
+      colors[i] = colors[i-1];
+    }
+    colors[0] = (unsigned long) fadeRate << 16 | (unsigned long) (255 - fadeRate) << 8;
+    
+    // light em up
+    for (int i = 0 ;  i < NUMPIXELS  ;  i++)
+      strip.setPixelColor (head + i, colors[i]);
+    
+    strip.show();
   }
-  colors[0] = (unsigned long) fadeRate << 16 | (unsigned long) (255 - fadeRate) << 8;
-
-  // light em up
-  for (int i = 0 ;  i < NUMPIXELS  ;  i++)
-    strip.setPixelColor (head + i, colors[i]);
-  
-  strip.show();
 }
 
 
